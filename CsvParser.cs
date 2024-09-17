@@ -1,106 +1,58 @@
+using System.Reflection;
 using System.Text;
 
 namespace CsvParserCli;
 
 public class CsvParser()
 {
-    public List<string[]> Read(string path)
+    public static List<T> Deserialize<T>(string path, char delimiter = ',') where T : new()
     {
-        char delimiter = ',';
-        if (!File.Exists(path))
+        List<T> values = [];
+
+        using var reader = new StreamReader(path);
+
+        if (reader.EndOfStream)
         {
-            return [];
+            return values;
         }
 
-        List<string[]> parsedCsv = [];
-        string[] csvContent = File.ReadAllLines(path);
+        string? headerLine = reader.ReadLine();
 
-        if (csvContent.Length == 0)
+        if (string.IsNullOrWhiteSpace(headerLine))
         {
-            return [];
+            return values;
         }
 
-        for (int i = 1; i < csvContent.Length; i++)
+        string[] headers = ParseLine(headerLine, delimiter);
+        var memberMap = GetMemberMap<T>();
+
+        while (!reader.EndOfStream)
         {
-            parsedCsv.Add(ParseLine(csvContent[i], delimiter));
+            string? line = reader.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            string[] classProperties = ParseLine(line, delimiter);
+            T newClass = new T();
+
+            for (int i = 0; i < classProperties.Length; i++)
+            {
+                if (memberMap.TryGetValue(headers[i], out var member))
+                {
+                    SetMemberValues(newClass, member, classProperties[i]);
+                }
+            }
+
+            values.Add(newClass);
         }
 
-        return parsedCsv;
+        return values;
     }
 
-    public List<string[]> Read(string path, char delimiter)
-    {
-        if (!File.Exists(path))
-        {
-            return [];
-        }
-
-        List<string[]> parsedCsv = [];
-        string[] csvContent = File.ReadAllLines(path);
-
-        if (csvContent.Length == 0)
-        {
-            return [];
-        }
-
-        for (int i = 1; i < csvContent.Length; i++)
-        {
-            parsedCsv.Add(ParseLine(csvContent[i], delimiter));
-        }
-
-        return parsedCsv;
-    }
-
-    public List<string[]> Read(string path, bool header)
-    {
-        int startIndex = header ? 1 : 0;
-        char delimiter = ',';
-        if (!File.Exists(path))
-        {
-            return [];
-        }
-
-        List<string[]> parsedCsv = [];
-        string[] csvContent = File.ReadAllLines(path);
-
-        if (csvContent.Length == 0)
-        {
-            return [];
-        }
-
-        for (int i = startIndex; i < csvContent.Length; i++)
-        {
-            parsedCsv.Add(ParseLine(csvContent[i], delimiter));
-        }
-
-        return parsedCsv;
-    }
-
-    public List<string[]> Read(string path, char delimiter, bool header)
-    {
-        int startIndex = header ? 1 : 0;
-        if (!File.Exists(path))
-        {
-            return [];
-        }
-
-        List<string[]> parsedCsv = [];
-        string[] csvContent = File.ReadAllLines(path);
-
-        if (csvContent.Length == 0)
-        {
-            return [];
-        }
-
-        for (int i = startIndex; i < csvContent.Length; i++)
-        {
-            parsedCsv.Add(ParseLine(csvContent[i], delimiter));
-        }
-
-        return parsedCsv;
-    }
-
-    public string[] ParseLine(string line, char delimiter)
+    private static string[] ParseLine(string line, char delimiter)
     {
         int lineLength = line.Length;
         List<string> fields = [];
@@ -157,5 +109,74 @@ public class CsvParser()
         }
 
         return fields.ToArray();
+    }
+
+    private static void SetMemberValues<T>(T obj, MemberInfo member, string value)
+    {
+        try
+        {
+            object convertedValue;
+            Type memberType;
+
+            if (member is PropertyInfo property)
+            {
+                memberType = property.PropertyType;
+            }
+            else if (member is FieldInfo field)
+            {
+                memberType = field.FieldType;
+            }
+            else
+            {
+                throw new InvalidOperationException("Member is neither a property nor a field.");
+            }
+
+            if (memberType == typeof(string))
+            {
+                convertedValue = value;
+            }
+            else if (memberType.IsEnum)
+            {
+                convertedValue = Enum.Parse(memberType, value, true);
+            }
+            else
+            {
+                convertedValue = Convert.ChangeType(value, memberType);
+            }
+
+            if (member is PropertyInfo prop)
+            {
+                prop.SetValue(obj, convertedValue);
+            }
+            else if (member is FieldInfo field)
+            {
+                field.SetValue(obj, convertedValue);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error setting member {member.Name}: {ex.Message}");
+        }
+    }
+
+    private static Dictionary<string, MemberInfo> GetMemberMap<T>()
+    {
+        var type = typeof(T);
+        var map = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (prop.CanWrite)
+            {
+                map[prop.Name] = prop;
+            }
+        }
+
+        foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+        {
+            map[field.Name] = field;
+        }
+
+        return map;
     }
 }
