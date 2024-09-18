@@ -4,7 +4,7 @@ namespace CsvParserCli.Deserializing;
 
 internal class MemberValueGetter
 {
-    protected Dictionary<string, MemberInfo> GetMap<T>()
+    protected internal Dictionary<string, MemberInfo> GetMap<T>()
     {
         var type = typeof(T);
         var map = new Dictionary<string, MemberInfo>(StringComparer.OrdinalIgnoreCase);
