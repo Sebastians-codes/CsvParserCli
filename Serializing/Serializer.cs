@@ -1,6 +1,9 @@
 namespace CsvParserCli.Serializing;
 
-public class Serializer
+internal class Serializer
 {
+    internal void Serialize<T>(IEnumerable<T> objects, string path)
+    {
 
+    }
 }
