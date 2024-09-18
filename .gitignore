@@ -1,4 +1,5 @@
 *.rsuser
+.vscode
 *.suo
 *.user
 *.userosscache
