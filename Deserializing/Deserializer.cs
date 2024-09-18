@@ -1,7 +1,6 @@
-using CsvParserCli.Deserializing;
 using CsvParserCli.Parsing;
 
-namespace CsvParserCli.Deserializng;
+namespace CsvParserCli.Deserializing;
 
 internal class Deserializer
 {

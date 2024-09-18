@@ -1,8 +1,15 @@
 ﻿using CsvParserCli;
 
-var people = CsvParser.Deserializer<Person>("people.csv");
+// var people = CsvParser.Deserializer<Person>("people.csv");
 
-foreach (Person person in people)
+// foreach (Person person in people)
+// {
+//     person.Hello();
+// }
+
+CsvParser.Serialize(new Person()
 {
-    person.Hello();
-}
+    Name = "test",
+    Age = 45,
+    City = "göte"
+}, "test");
